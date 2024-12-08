@@ -1,4 +1,4 @@
-from typing import List, Tuple, Optional, Set, Any, Dict, Union
+from typing import List, Tuple, Optional, Set, Any, Dict, Union, Iterable, Callable
 from itertools import permutations, zip_longest, chain, product, count
 from collections import namedtuple
 from pathlib import Path
@@ -38,6 +38,8 @@ class Position:
 type FieldDimensions = Position
 type AntennaPositionDict = Dict[str, List[Position]]
 type AntinodePositionDict = Dict[str, List[Position]]
+type ResonanceProvider = Callable[[], Iterable[int]]
+type DirectionProvider = Callable[[], Iterable[int]]
 
 IGNORED_ANTENNAS = '.#'
 
@@ -70,42 +72,27 @@ def read_input(filename: PathLike, ignored_antennas: str = IGNORED_ANTENNAS) -> 
     return antennas, Position(len(data[0]), len(data))
 
 
-def calculate_antinodes(antennas: AntennaPositionDict, field_size: FieldDimensions) -> AntinodePositionDict:
+def calculate_antinodes(antennas: AntennaPositionDict, field_size: FieldDimensions, resonance_provider: ResonanceProvider = lambda: [1], direction_provider: DirectionProvider = lambda: [1]) -> AntinodePositionDict:
     antinodes: AntinodePositionDict = {}
     
     for antenna_type, positions in antennas.items():
         for (pos_a, pos_b) in permutations(positions, 2):
-            antinode_a_offset = pos_b - pos_a
-            antinode_b_offset = pos_a - pos_b
-            
-            antinode_a = pos_b + antinode_a_offset
-            antinode_b = pos_a + antinode_b_offset
-            
-            if antinode_a >= Position(0, 0) and antinode_a < field_size:
-                antinodes.setdefault(antenna_type, []).append(antinode_a)
+            for position, antinode_offset in ((pos_b, pos_b - pos_a), (pos_a, pos_a - pos_b)):
+                for direction in direction_provider():
+                    for scaler in resonance_provider():
+                        antinode = position + (antinode_offset * direction * scaler)
 
-            if antinode_b >= Position(0, 0) and antinode_b < field_size:
-                antinodes.setdefault(antenna_type, []).append(antinode_b)
-
-    return antinodes
-
-
-def calculate_antinodes_2(antennas: AntennaPositionDict, field_size: FieldDimensions) -> AntinodePositionDict:
-    antinodes: AntinodePositionDict = {}
-    
-    for antenna_type, positions in antennas.items():
-        for (pos_a, pos_b) in permutations(positions, 2):
-            for position, offset in ((pos_b, pos_b - pos_a), (pos_a, pos_a - pos_b)):
-                for direction in (1, -1):
-                    for scale in count(1):
-                        antinode = position + offset * (scale * direction)
-                        
                         if antinode >= Position(0, 0) and antinode < field_size:
                             antinodes.setdefault(antenna_type, []).append(antinode)
                         else:
                             break
 
     return antinodes
+
+
+def calculate_antinodes_2(antennas: AntennaPositionDict, field_size: FieldDimensions) -> AntinodePositionDict:
+    return calculate_antinodes(antennas, field_size, lambda: count(1), lambda: [1, -1])
+
 
 
 def diff(a: str, b: str):
@@ -118,7 +105,7 @@ def test(filename: PathLike):
 
     field = draw_field(antennas, antinodes, field_size)
     example = Path(filename).read_text().strip()
-    assert field == example, f'{field}\n\n{example}\n\n{diff(field, example)})'
+    assert field == example, f'\n{field}\n\n{example}\n\n{diff(field, example)})'
 
 
 def test_2(filename: PathLike):
@@ -127,7 +114,7 @@ def test_2(filename: PathLike):
 
     field = draw_field(antennas, antinodes, field_size)
     example = Path(filename).read_text().strip()
-    assert field == example, f'{field}\n\n{example}\n\n{diff(field, example)})'
+    assert field == example, f'\n{field}\n\n{example}\n\n{diff(field, example)})'
     
 
 def part_1(filename: PathLike):
