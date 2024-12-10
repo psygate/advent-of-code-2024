@@ -83,9 +83,8 @@ def part_2(filename: PathLike):
     
     for starting_point in field.get_starting_points:
         peaks = 0
-        visited_nodes = set()
+        visited_nodes: Set[Position] = set()
         walk_stack = [[starting_point]]
-        possible_paths = []
         while walk_stack:
             path = walk_stack.pop()
             current_x, current_y = path[-1]
@@ -94,12 +93,11 @@ def part_2(filename: PathLike):
                 next_x, next_y = current_x + x, current_y + y
                 if next_x >= 0 and next_y >= 0 and next_x < field.width and next_y < field.height:
                     
-                    assert field[next_x, next_y] is not None 
-                    assert field[current_x, current_y] is not None
+                    left, right = field[next_x, next_y], field[current_x, current_y]
+                    assert left is not None and right is not None
                      
-                    if field[next_x, next_y] - field[current_x, current_y] == 1 and (next_x, next_y) not in path:
+                    if (left - right)== 1 and (next_x, next_y) not in path:
                         if field[next_x, next_y] == 9:
-                            possible_paths.append(list(path) + [(next_x, next_y)])
                             peaks += 1
                         
                         walk_stack.append(list(path) + [(next_x, next_y)])
